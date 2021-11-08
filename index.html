@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>family in jeju</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Icons+Outlined"
+      rel="stylesheet"
+    />
+    <style>
+      .material-icons {
+        font-family: 'Material Icons Outlined';
+        font-size: 24px;
+        display: inline-block;
+        line-height: 1;
+        white-space: nowrap;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: 'liga';
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      #map {
+        height: 100vh;
+      }
+
+      .post {
+        background-color: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(0, 0, 0, 0.7);
+        border-radius: 0.25rem;
+        color: #fff;
+        display: inline-block;
+        position: relative;
+      }
+
+      .post::after {
+        border-color: rgba(0, 0, 0, 0.7) transparent transparent;
+        border-style: solid;
+        border-width: 8px;
+        content: '';
+        display: inline-block;
+        left: 50%;
+        position: absolute;
+        top: 100%;
+      }
+
+      .post > .material-icons {
+        background-color: rgba(200, 20, 20, 1);
+        display: inline-block;
+        font-size: 1.5rem;
+        padding: 0.5rem;
+      }
+
+      .post__text {
+        font-weight: 700;
+        letter-spacing: -0.1rem;
+        padding: 0.5rem;
+        vertical-align: super;
+        text-shadow: 1px 1px 3px #000;
+        word-spacing: -0.1rem;
+      }
+
+      .focusing {
+        z-index: 9999 !important;
+      }
+      .focusing > .post {
+        background-color: rgba(0, 0, 0, 0.7);
+        box-shadow: 3px 3px 3px rgba(255, 255, 255, 0.7);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <script
+      type="text/javascript"
+      src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a3332a503854a1bdd1fecb08dcc799ba"
+    ></script>
+    <script>
+      const URI_SHEET =
+        'https://sheets.googleapis.com/v4/spreadsheets/1xC7eRNqiSLHLz6vY3qNd9tRBJ9dkh7fQs3DqXpqbZFw?&key=AIzaSyDsh4VsVsLRaSB60mbWEn6tarUYYvtDXXs&includeGridData=true&ranges=B6:G42'
+      const URI_FIND_ADDR =
+        'https://dapi.kakao.com/v2/local/search/address.json?analyze_type=exact&query='
+
+      const TPL_POST = (type, text) => {
+        let icon = 'place'
+        if ('play' == type) icon = 'directions_walk'
+        else if ('food' == type) icon = 'restaurant'
+        else if ('home' == type) icon = 'hotel'
+
+        if (/카페|커피|cafe|coffee/.test(text)) icon = 'local_cafe'
+        if (/국수|라면|짬뽕|짜장/.test(text)) icon = 'ramen_dining'
+        else if (/식당|음식|식사/.test(text)) icon = 'fastfood'
+        else if (/수목원|산책|둘레길|고지/.test(text)) icon = 'directions_walk'
+
+        const div = document.createElement('div')
+        div.classList.add('post')
+        div.innerHTML = `<span class="material-icons">${icon}</span>
+          <span class="post__text">${text.replace(
+            /^(.*)\s*http.+$/,
+            '$1'
+          )}</span>`
+
+        div.addEventListener('click', e => {
+          document
+            .querySelectorAll('.post')
+            .forEach(i => i.parentElement.classList.remove('focusing'))
+          console.log(e.currentTarget, e.target)
+          e.currentTarget.parentElement.classList.add('focusing')
+        })
+
+        return div
+      }
+
+      const BASE_POINT = JSON.parse(localStorage.getItem('BASE_POINT')) || [
+        33.455480109285894, 126.48997404583552
+      ]
+      const ZOOM_LEVEL = JSON.parse(localStorage.getItem('ZOOM_LEVEL')) || 11
+      const GPS_MAPPING = JSON.parse(localStorage.getItem('GPS_MAPPING')) || {}
+
+      const container = document.querySelector('#map')
+      const options = {
+        center: new kakao.maps.LatLng(BASE_POINT[0], BASE_POINT[1]),
+        level: ZOOM_LEVEL
+      }
+
+      const map = new kakao.maps.Map(container, options)
+
+      kakao.maps.event.addListener(map, 'zoom_changed', function () {
+        localStorage.setItem('ZOOM_LEVEL', map.getLevel())
+      })
+
+      kakao.maps.event.addListener(map, 'center_changed', function () {
+        const center = map.getCenter()
+        localStorage.setItem(
+          'BASE_POINT',
+          JSON.stringify([center.getLat(), center.getLng()])
+        )
+      })
+
+      fetch(URI_SHEET)
+        .then(res => res.json())
+        .then(
+          ({
+            sheets: [
+              {
+                data: [{ rowData }]
+              }
+            ]
+          }) => {
+            const places = []
+
+            rowData.forEach(
+              ({
+                values: [name0, address0, name1, address1, name2, address2]
+              }) => {
+                if (address0?.effectiveValue?.stringValue) {
+                  places.push({
+                    type: 'play',
+                    name: name0?.effectiveValue?.stringValue.trim(),
+                    address: address0?.effectiveValue?.stringValue.trim()
+                  })
+                }
+                if (address1?.effectiveValue?.stringValue) {
+                  places.push({
+                    type: 'food',
+                    name: name1?.effectiveValue?.stringValue.trim(),
+                    address: address1?.effectiveValue?.stringValue.trim()
+                  })
+                }
+                if (address2?.effectiveValue?.stringValue) {
+                  places.push({
+                    type: 'home',
+                    name: name2?.effectiveValue?.stringValue.trim(),
+                    address: address2?.effectiveValue?.stringValue.trim()
+                  })
+                }
+              }
+            )
+
+            return places
+          }
+        )
+        .then(places => {
+          console.log(places)
+          Promise.all(
+            places
+              .filter(({ address }) => !GPS_MAPPING.hasOwnProperty(address))
+              .map(({ type, name, address }) =>
+                fetch(`${URI_FIND_ADDR}${address}`, {
+                  headers: {
+                    Authorization: 'KakaoAK d3ce6c8f522e3aaa791a9d435188a4a3'
+                  }
+                })
+                  .then(res => res.json())
+                  .then(({ documents: [{ x: lng, y: lat }] }) => {
+                    GPS_MAPPING[address] = [lat, lng, name, type]
+                    localStorage.setItem(
+                      'GPS_MAPPING',
+                      JSON.stringify(GPS_MAPPING)
+                    )
+                  })
+              )
+          ).then(() => {
+            console.log('all')
+            Object.keys(GPS_MAPPING).forEach(address => {
+              const [lat, lng, name, type] = GPS_MAPPING[address]
+
+              new kakao.maps.CustomOverlay({
+                position: new kakao.maps.LatLng(lat, lng),
+                content: TPL_POST(type, name)
+              }).setMap(map)
+            })
+          })
+        })
+    </script>
+  </body>
+</html>
