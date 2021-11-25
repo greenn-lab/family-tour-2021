@@ -52,10 +52,18 @@
       }
 
       .post > .material-icons {
-        background-color: rgba(200, 20, 20, 1);
+        background-color: rgba(200, 100, 50, 1);
         display: inline-block;
         font-size: 1.5rem;
         padding: 0.5rem;
+      }
+
+      .post > .material-icons.home {
+        background-color: rgba(200, 200, 20, 1);
+      }
+
+      .post > .material-icons.directions_walk {
+        background-color: rgba(20, 200, 100, 1);
       }
 
       .post__text {
@@ -93,7 +101,7 @@
         let icon = 'place'
         if ('play' == type) icon = 'directions_walk'
         else if ('food' == type) icon = 'restaurant'
-        else if ('home' == type) icon = 'hotel'
+        else if ('home' == type) icon = 'home'
 
         if (/카페|커피|cafe|coffee/.test(text)) icon = 'local_cafe'
         if (/국수|라면|짬뽕|짜장/.test(text)) icon = 'ramen_dining'
@@ -102,7 +110,7 @@
 
         const div = document.createElement('div')
         div.classList.add('post')
-        div.innerHTML = `<span class="material-icons">${icon}</span>
+        div.innerHTML = `<span class="material-icons ${icon}">${icon}</span>
           <span class="post__text">${text.replace(
             /^(.*)\s*http.+$/,
             '$1'
